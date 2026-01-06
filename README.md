@@ -2,18 +2,22 @@
 
 > Most software engineers are seriously sleeping on how good LLM agents are right now, especially something like Claude Code.
 
-Once you've got Claude Code set up, you can point it at your codebase, have it learn your conventions, pull in best practices, and refine everything until it's basically operating like a super-powered teammate. **The real unlock is building a solid set of reusable "skills" plus a few agents for the stuff you do all the time.**
+Once you've got Claude Code set up, you can point it at your codebase, have it learn your conventions, pull in best practices, and refine everything until it's basically operating like a super-powered teammate. **The real unlock is building a solid set of reusable "[skills](#skills---domain-knowledge)" plus a few "[agents](#agents---specialized-assistants)" for the stuff you do all the time.**
 
-For example, we have a custom UI library, and Claude Code has a skill that explains exactly how to use it. Same for how we write Storybooks, how we structure APIs, and basically how we want everything done in our repo. So when it generates code, it already matches our patterns and standards out of the box.
+### What This Looks Like in Practice
 
-We also had Claude Code create a bunch of ESLint automation, including custom ESLint rules and lint checks that catch and auto-handle a lot of stuff before it even hits review.
+**Custom UI Library?** We have a [skill that explains exactly how to use it](.claude/skills/core-components/SKILL.md). Same for [how we write tests](.claude/skills/testing-patterns/SKILL.md), [how we structure GraphQL](.claude/skills/graphql-schema/SKILL.md), and basically how we want everything done in our repo. So when Claude generates code, it already matches our patterns and standards out of the box.
 
-Then we take it further: **we have a deep code review agent Claude Code runs after changes are made**. And when a PR goes up, we have another Claude Code agent that does a full PR review, following a detailed markdown checklist we've written for it.
+**Automated Quality Gates?** We use [hooks](.claude/settings.json) to auto-format code, run tests when test files change, type-check TypeScript, and even [block edits on the main branch](.claude/settings.md). Claude Code also created a bunch of ESLint automation, including custom rules and lint checks that catch issues before they hit review.
 
-On top of that, we've got like five other Claude Code GitHub workflow agents that run on a schedule:
-- One reads all commits from the last month and makes sure docs are still aligned
-- Another checks for gaps in end-to-end coverage
-- Stuff like that
+**Deep Code Review?** We have a [code review agent](.claude/agents/code-reviewer.md) that Claude runs after changes are made. It follows a detailed checklist covering TypeScript strict mode, error handling, loading states, mutation patterns, and more. When a PR goes up, we have a [GitHub Action](.github/workflows/pr-claude-code-review.yml) that does a full PR review automatically.
+
+**Scheduled Maintenance?** We've got GitHub workflow agents that run on a schedule:
+- [Monthly docs sync](.github/workflows/scheduled-claude-code-docs-sync.yml) - Reads commits from the last month and makes sure docs are still aligned
+- [Weekly code quality](.github/workflows/scheduled-claude-code-quality.yml) - Reviews random directories and auto-fixes issues
+- [Biweekly dependency audit](.github/workflows/scheduled-claude-code-dependency-audit.yml) - Safe dependency updates with test verification
+
+**Intelligent Skill Suggestions?** We built a [skill evaluation system](#skill-evaluation-hooks) that analyzes every prompt and automatically suggests which skills Claude should activate based on keywords, file paths, and intent patterns.
 
 A ton of maintenance and quality work is just... automated. It runs ridiculously smoothly.
 
@@ -30,11 +34,13 @@ We even use Claude Code for ticket triage. It reads the ticket, digs into the co
 - [Configuration Reference](#configuration-reference)
   - [CLAUDE.md - Project Memory](#claudemd---project-memory)
   - [settings.json - Hooks & Environment](#settingsjson---hooks--environment)
+  - [Skill Evaluation Hooks](#skill-evaluation-hooks)
   - [Skills - Domain Knowledge](#skills---domain-knowledge)
   - [Agents - Specialized Assistants](#agents---specialized-assistants)
   - [Commands - Slash Commands](#commands---slash-commands)
 - [GitHub Actions Workflows](#github-actions-workflows)
 - [Best Practices](#best-practices)
+- [Examples in This Repository](#examples-in-this-repository)
 
 ---
 
@@ -94,7 +100,7 @@ mkdir -p .claude/{agents,commands,hooks,skills}
 
 ### 2. Add a CLAUDE.md file
 
-Create `CLAUDE.md` in your project root with your project's key information:
+Create `CLAUDE.md` in your project root with your project's key information. See [CLAUDE.md](CLAUDE.md) for a complete example.
 
 ```markdown
 # Project Name
@@ -117,7 +123,7 @@ Create `CLAUDE.md` in your project root with your project's key information:
 
 ### 3. Add settings.json with hooks
 
-Create `.claude/settings.json`:
+Create `.claude/settings.json`. See [settings.json](.claude/settings.json) for a full example with auto-formatting, testing, and more.
 
 ```json
 {
@@ -140,7 +146,7 @@ Create `.claude/settings.json`:
 
 ### 4. Add your first skill
 
-Create `.claude/skills/testing-patterns/SKILL.md`:
+Create `.claude/skills/testing-patterns/SKILL.md`. See [testing-patterns/SKILL.md](.claude/skills/testing-patterns/SKILL.md) for a comprehensive example.
 
 ```markdown
 ---
@@ -180,23 +186,7 @@ CLAUDE.md is Claude's persistent memory that loads automatically at session star
 - Important directories and their purposes
 - Critical rules and constraints
 
-**Example:**
-```markdown
-# MyApp
-
-## Stack
-React Native, TypeScript, Expo, GraphQL (Apollo Client)
-
-## Commands
-- `npm run test:unit` - Jest unit tests
-- `npm run lint` - Biome + ESLint + TypeScript
-- `npm run gql:typegen` - Generate GraphQL types
-
-## Critical Rules
-- NEVER use `console.error()` - use Sentry helpers
-- All user-facing text must use i18n
-- GraphQL: Create `.gql` files, never inline `gql` literals
-```
+**📄 Example:** [CLAUDE.md](CLAUDE.md)
 
 ---
 
@@ -205,6 +195,8 @@ React Native, TypeScript, Expo, GraphQL (Apollo Client)
 The main configuration file for hooks, environment variables, and permissions.
 
 **Location:** `.claude/settings.json`
+
+**📄 Example:** [settings.json](.claude/settings.json) | [Human-readable docs](.claude/settings.md)
 
 #### Hook Events
 
@@ -232,52 +224,108 @@ The main configuration file for hooks, environment variables, and permissions.
 - `2` - Blocking error (PreToolUse only, blocks the tool)
 - Other - Non-blocking error
 
-#### Full Example
+---
+
+### Skill Evaluation Hooks
+
+One of our most powerful automations is the **skill evaluation system**. It runs on every prompt submission and intelligently suggests which skills Claude should activate.
+
+**📄 Files:** [skill-eval.sh](.claude/hooks/skill-eval.sh) | [skill-eval.js](.claude/hooks/skill-eval.js) | [skill-rules.json](.claude/hooks/skill-rules.json)
+
+#### How It Works
+
+When you submit a prompt, the `UserPromptSubmit` hook triggers our skill evaluation engine:
+
+1. **Prompt Analysis** - The engine analyzes your prompt for:
+   - **Keywords**: Simple word matching (`test`, `form`, `graphql`, `bug`)
+   - **Patterns**: Regex matching (`\btest(?:s|ing)?\b`, `\.stories\.`)
+   - **File Paths**: Extracts mentioned files (`src/components/Button.tsx`)
+   - **Intent**: Detects what you're trying to do (`create.*test`, `fix.*bug`)
+
+2. **Directory Mapping** - File paths are mapped to relevant skills:
+   ```json
+   {
+     "src/components/core": "core-components",
+     "src/graphql": "graphql-schema",
+     ".github/workflows": "github-actions",
+     "src/hooks": "react-ui-patterns"
+   }
+   ```
+
+3. **Confidence Scoring** - Each trigger type has a point value:
+   ```json
+   {
+     "keyword": 2,
+     "keywordPattern": 3,
+     "pathPattern": 4,
+     "directoryMatch": 5,
+     "intentPattern": 4
+   }
+   ```
+
+4. **Skill Suggestion** - Skills exceeding the confidence threshold are suggested with reasons:
+   ```
+   SKILL ACTIVATION REQUIRED
+
+   Detected file paths: src/components/UserForm.tsx
+
+   Matched skills (ranked by relevance):
+   1. formik-patterns (HIGH confidence)
+      Matched: keyword "form", path "src/components/UserForm.tsx"
+   2. react-ui-patterns (MEDIUM confidence)
+      Matched: directory mapping, keyword "component"
+   ```
+
+#### Configuration
+
+Skills are defined in [skill-rules.json](.claude/hooks/skill-rules.json):
 
 ```json
 {
-  "env": {
-    "BASH_DEFAULT_TIMEOUT_MS": "300000"
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ \"$(git branch --show-current)\" != \"main\" ] || { echo '{\"block\": true, \"message\": \"Cannot edit on main\"}' >&2; exit 2; }",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [[ \"$CLAUDE_TOOL_INPUT_FILE_PATH\" =~ \\.(ts|tsx)$ ]]; then npx prettier --write \"$CLAUDE_TOOL_INPUT_FILE_PATH\"; fi",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/skill-eval.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
+  "testing-patterns": {
+    "description": "Jest testing patterns and TDD workflow",
+    "priority": 9,
+    "triggers": {
+      "keywords": ["test", "jest", "spec", "tdd", "mock"],
+      "keywordPatterns": ["\\btest(?:s|ing)?\\b", "\\bspec\\b"],
+      "pathPatterns": ["**/*.test.ts", "**/*.test.tsx"],
+      "intentPatterns": [
+        "(?:write|add|create|fix).*(?:test|spec)",
+        "(?:test|spec).*(?:for|of|the)"
+      ]
+    },
+    "excludePatterns": ["e2e", "maestro", "end-to-end"]
   }
 }
 ```
+
+#### Adding to Your Project
+
+1. Copy the hooks to your project:
+   ```bash
+   cp -r .claude/hooks/ your-project/.claude/hooks/
+   ```
+
+2. Add the hook to your `settings.json`:
+   ```json
+   {
+     "hooks": {
+       "UserPromptSubmit": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/skill-eval.sh",
+               "timeout": 5
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+3. Customize [skill-rules.json](.claude/hooks/skill-rules.json) with your project's skills and triggers.
 
 ---
 
@@ -286,6 +334,14 @@ The main configuration file for hooks, environment variables, and permissions.
 Skills are markdown documents that teach Claude project-specific patterns and conventions.
 
 **Location:** `.claude/skills/{skill-name}/SKILL.md`
+
+**📄 Examples:**
+- [testing-patterns](.claude/skills/testing-patterns/SKILL.md) - TDD, factory functions, mocking
+- [systematic-debugging](.claude/skills/systematic-debugging/SKILL.md) - Four-phase debugging methodology
+- [react-ui-patterns](.claude/skills/react-ui-patterns/SKILL.md) - Loading states, error handling
+- [graphql-schema](.claude/skills/graphql-schema/SKILL.md) - Queries, mutations, codegen
+- [core-components](.claude/skills/core-components/SKILL.md) - Design system, tokens
+- [formik-patterns](.claude/skills/formik-patterns/SKILL.md) - Form handling, validation
 
 #### SKILL.md Format
 
@@ -334,6 +390,10 @@ Agents are AI assistants with focused purposes and their own prompts.
 
 **Location:** `.claude/agents/{agent-name}.md`
 
+**📄 Examples:**
+- [code-reviewer.md](.claude/agents/code-reviewer.md) - Comprehensive code review with checklist
+- [github-workflow.md](.claude/agents/github-workflow.md) - Git commits, branches, PRs
+
 #### Agent Format
 
 ```markdown
@@ -375,6 +435,13 @@ Custom commands invoked with `/command-name`.
 
 **Location:** `.claude/commands/{command-name}.md`
 
+**📄 Examples:**
+- [onboard.md](.claude/commands/onboard.md) - Deep task exploration
+- [pr-review.md](.claude/commands/pr-review.md) - PR review workflow
+- [pr-summary.md](.claude/commands/pr-summary.md) - Generate PR description
+- [code-quality.md](.claude/commands/code-quality.md) - Quality checks
+- [docs-sync.md](.claude/commands/docs-sync.md) - Documentation alignment
+
 #### Command Format
 
 ```markdown
@@ -409,6 +476,12 @@ Recent commits: !`git log --oneline -5`
 ## GitHub Actions Workflows
 
 Automate code review, quality checks, and maintenance with Claude Code.
+
+**📄 Examples:**
+- [pr-claude-code-review.yml](.github/workflows/pr-claude-code-review.yml) - Auto PR review
+- [scheduled-claude-code-docs-sync.yml](.github/workflows/scheduled-claude-code-docs-sync.yml) - Monthly docs sync
+- [scheduled-claude-code-quality.yml](.github/workflows/scheduled-claude-code-quality.yml) - Weekly quality review
+- [scheduled-claude-code-dependency-audit.yml](.github/workflows/scheduled-claude-code-dependency-audit.yml) - Biweekly dependency updates
 
 ### PR Code Review
 
@@ -446,86 +519,11 @@ jobs:
 
 ### Scheduled Workflows
 
-#### Weekly Code Quality Review
-
-Reviews random directories and auto-fixes issues:
-
-```yaml
-name: Scheduled - Code Quality Review
-on:
-  schedule:
-    - cron: '0 8 * * 0'  # Every Sunday 8 AM UTC
-  workflow_dispatch:
-
-jobs:
-  select-directories:
-    runs-on: ubuntu-latest
-    outputs:
-      directories: ${{ steps.select.outputs.directories }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: select
-        run: |
-          DIRS=$(find src -type d -name "*.ts" | shuf -n 3)
-          echo "directories=$(echo $DIRS | jq -R -s -c 'split("\n")')" >> $GITHUB_OUTPUT
-
-  review-directory:
-    needs: select-directories
-    strategy:
-      matrix:
-        directory: ${{ fromJson(needs.select-directories.outputs.directories) }}
-    steps:
-      - uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            Review and FIX issues in: ${{ matrix.directory }}
-            Create a PR with fixes if any issues found.
-```
-
-#### Monthly Documentation Sync
-
-Ensures docs stay aligned with code changes:
-
-```yaml
-name: Scheduled - Documentation Sync
-on:
-  schedule:
-    - cron: '0 9 1 * *'  # 1st of every month
-
-jobs:
-  docs-sync:
-    steps:
-      - uses: anthropics/claude-code-action@beta
-        with:
-          prompt: |
-            Review code changes from last 30 days.
-            Find documentation that is now WRONG.
-            Fix only what's broken - docs are living documents.
-            Create PR if fixes needed.
-```
-
-#### Biweekly Dependency Audit
-
-Safe dependency updates (JS-only, no native modules):
-
-```yaml
-name: Scheduled - Dependency Audit
-on:
-  schedule:
-    - cron: '0 10 1,15 * *'  # 1st and 15th of month
-
-jobs:
-  dependency-audit:
-    steps:
-      - run: npm outdated --json > /tmp/outdated.json || true
-      - uses: anthropics/claude-code-action@beta
-        with:
-          prompt: |
-            Analyze outdated dependencies.
-            ONLY update JS-only packages (no native modules).
-            Run tests to verify. Create PR with changelog.
-```
+| Workflow | Schedule | Purpose |
+|----------|----------|---------|
+| [Code Quality](.github/workflows/scheduled-claude-code-quality.yml) | Weekly (Sunday) | Reviews random directories, auto-fixes issues |
+| [Docs Sync](.github/workflows/scheduled-claude-code-docs-sync.yml) | Monthly (1st) | Ensures docs align with code changes |
+| [Dependency Audit](.github/workflows/scheduled-claude-code-dependency-audit.yml) | Biweekly (1st & 15th) | Safe dependency updates with testing |
 
 ### Setup Required
 
@@ -595,18 +593,38 @@ Commit everything except:
 
 ---
 
-## Files in This Repository
+## Examples in This Repository
 
-| Path | Description |
+| File | Description |
 |------|-------------|
-| `.claude/settings.json` | Full hooks configuration example |
-| `.claude/settings.md` | Human-readable hooks documentation |
-| `.claude/agents/code-reviewer.md` | Comprehensive code review agent |
-| `.claude/commands/` | Example slash commands |
-| `.claude/hooks/` | Skill evaluation system |
-| `.claude/skills/` | 20+ domain knowledge skills |
-| `.github/workflows/` | GitHub Actions for automation |
-| `CLAUDE.md` | Example project memory file |
+| [CLAUDE.md](CLAUDE.md) | Example project memory file |
+| [.claude/settings.json](.claude/settings.json) | Full hooks configuration |
+| [.claude/settings.md](.claude/settings.md) | Human-readable hooks documentation |
+| **Agents** | |
+| [.claude/agents/code-reviewer.md](.claude/agents/code-reviewer.md) | Comprehensive code review agent |
+| [.claude/agents/github-workflow.md](.claude/agents/github-workflow.md) | Git workflow agent |
+| **Commands** | |
+| [.claude/commands/onboard.md](.claude/commands/onboard.md) | Deep task exploration |
+| [.claude/commands/pr-review.md](.claude/commands/pr-review.md) | PR review workflow |
+| [.claude/commands/pr-summary.md](.claude/commands/pr-summary.md) | Generate PR summary |
+| [.claude/commands/code-quality.md](.claude/commands/code-quality.md) | Quality checks |
+| [.claude/commands/docs-sync.md](.claude/commands/docs-sync.md) | Documentation sync |
+| **Hooks** | |
+| [.claude/hooks/skill-eval.sh](.claude/hooks/skill-eval.sh) | Skill evaluation wrapper |
+| [.claude/hooks/skill-eval.js](.claude/hooks/skill-eval.js) | Node.js skill matching engine |
+| [.claude/hooks/skill-rules.json](.claude/hooks/skill-rules.json) | Pattern matching rules |
+| **Skills** | |
+| [.claude/skills/testing-patterns/SKILL.md](.claude/skills/testing-patterns/SKILL.md) | TDD, factory functions, mocking |
+| [.claude/skills/systematic-debugging/SKILL.md](.claude/skills/systematic-debugging/SKILL.md) | Four-phase debugging |
+| [.claude/skills/react-ui-patterns/SKILL.md](.claude/skills/react-ui-patterns/SKILL.md) | Loading/error/empty states |
+| [.claude/skills/graphql-schema/SKILL.md](.claude/skills/graphql-schema/SKILL.md) | Queries, mutations, codegen |
+| [.claude/skills/core-components/SKILL.md](.claude/skills/core-components/SKILL.md) | Design system, tokens |
+| [.claude/skills/formik-patterns/SKILL.md](.claude/skills/formik-patterns/SKILL.md) | Form handling, validation |
+| **GitHub Workflows** | |
+| [.github/workflows/pr-claude-code-review.yml](.github/workflows/pr-claude-code-review.yml) | Auto PR review |
+| [.github/workflows/scheduled-claude-code-docs-sync.yml](.github/workflows/scheduled-claude-code-docs-sync.yml) | Monthly docs sync |
+| [.github/workflows/scheduled-claude-code-quality.yml](.github/workflows/scheduled-claude-code-quality.yml) | Weekly quality review |
+| [.github/workflows/scheduled-claude-code-dependency-audit.yml](.github/workflows/scheduled-claude-code-dependency-audit.yml) | Biweekly dependency audit |
 
 ---
 
